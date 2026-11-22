@@ -25,7 +25,7 @@
     if (document.getElementById('chaiModule')) return;
     const nav = document.querySelector('nav');
     const button = document.createElement('button');
-    button.type = 'button'; button.dataset.view = 'chai'; button.textContent = 'Chai & Cigarettes';
+    button.type = 'button'; button.dataset.view = 'chai'; button.textContent = 'Chai';
     button.addEventListener('click', () => showView('chai'));
     nav.appendChild(button);
 
