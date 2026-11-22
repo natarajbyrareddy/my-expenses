@@ -28,6 +28,9 @@
     button.type = 'button'; button.dataset.view = 'chai'; button.textContent = 'Chai'; button.setAttribute('aria-label', 'Chai & Cigarettes');
     button.addEventListener('click', () => showView('chai'));
     nav.appendChild(button);
+     const navStyle = document.createElement('style');
+navStyle.textContent = 'nav{display:flex;justify-content:space-between;gap:2px}nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px;white-space:normal;line-height:1.2}';
+document.head.appendChild(navStyle);
 
     const section = document.createElement('section');
     section.className = 'view'; section.id = 'chai';
