@@ -14,7 +14,7 @@
 :root{--green:#174d3a;--green2:#e8f1ec;--ink:#17231d;--muted:#758078;--line:#e7ece8;--bg:#f6f8f6;--white:#fff;--red:#bd4c45}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 header{background:var(--green);color:white;padding:20px 18px 24px;border-radius:0 0 24px 24px}
-.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:20px;font-weight:750;letter-spacing:-.4px}.month{font-size:13px;opacity:.85}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}.top-right{display:flex;align-items:center;gap:7px;min-width:0;flex:none}.theme-select-wrap select{width:108px;max-width:108px;background:#ffffff20;color:#fff;border:1px solid #ffffff80;border-radius:10px;padding:8px 17px 8px 7px;font:inherit;font-size:11px}.theme-select-wrap select option{color:#17231d;background:#fff}.theme-select-wrap input[type=color]{width:34px;height:34px;padding:2px;border:1px solid #ffffff80;border-radius:9px;background:transparent;vertical-align:middle}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.brand{font-size:18px;font-weight:750;letter-spacing:-.4px;white-space:nowrap;flex:none}.month{font-size:12px;font-weight:750;opacity:1;white-space:nowrap;flex:none;padding:7px 8px;border-radius:9px;background:#ffffff1c}
 main{max-width:680px;margin:auto;padding:16px 16px 100px}
 .summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .card{background:white;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 2px 10px #153b2410}.card.primary-spend{grid-column:1/-1;background:#fff;border-color:#f0d7d4}.card.primary-spend .amount{font-size:30px;color:var(--red)}.card.secondary-income{padding:10px 13px}.card.secondary-income .amount{font-size:17px;color:var(--green)}
@@ -55,7 +55,7 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
 </div>
 
 <header>
- <div class="top"><div class="brand">My Expenses</div><div class="month" id="monthLabel"></div></div>
+ <div class="top"><div class="brand">My Expenses</div><div class="top-right"><div class="month" id="monthLabel"></div><label class="theme-select-wrap" aria-label="Change app theme"><span class="sr-only">Change theme</span><select id="themeSelect" aria-label="Change theme" onchange="handleThemeSelect(this.value)"><option value="#174d3a">Forest green</option><option value="#2457a6">Blue</option><option value="#8a4f24">Earthy brown</option><option value="#7045a3">Purple</option><option value="custom">Custom colour…</option></select><input id="headerCustomTheme" type="color" value="#174d3a" aria-label="Choose custom theme colour" onchange="setTheme(this.value)" hidden></label></div></div>
  <div class="summary">
   <div class="card primary-spend"><small>Monthly Spending</small><div class="amount" id="expenseTotal">₹0</div></div>
   <div class="card"><small>Today's Expenses</small><div class="amount" id="todayExpenseTotal">₹0</div></div>
@@ -115,17 +115,6 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
 </section>
 <section class="view" id="categories">
  <div class="sectionhead"><h2>Categories & Appearance</h2><span class="subtle">Personalise your app</span></div>
- <div class="sectionhead"><h2>Change app theme</h2><span class="subtle">Choose a colour</span></div>
- <div class="formcard">
-  <div class="theme-options">
-   <button type="button" class="theme-choice" onclick="setTheme('#174d3a')"><span class="swatch" style="background:#174d3a"></span>Forest green</button>
-   <button type="button" class="theme-choice" onclick="setTheme('#2457a6')"><span class="swatch" style="background:#2457a6"></span>Blue</button>
-   <button type="button" class="theme-choice" onclick="setTheme('#8a4f24')"><span class="swatch" style="background:#8a4f24"></span>Earthy brown</button>
-   <button type="button" class="theme-choice" onclick="setTheme('#7045a3')"><span class="swatch" style="background:#7045a3"></span>Purple</button>
-  </div>
-  <div class="field" style="margin-top:14px"><label>Choose a custom colour</label><input id="customTheme" type="color" value="#174d3a" onchange="setTheme(this.value)"></div>
-  <div class="note">Your colour choice is saved on this iPhone.</div>
- </div>
  <div class="sectionhead"><h2>Manage categories</h2></div>
  <div class="formcard">
   <div class="field"><label>Category type</label><select id="catType" onchange="renderCategoryManager()"><option value="expense">Expense category</option><option value="income">Income category</option></select></div>
@@ -148,7 +137,7 @@ try{const parsed=JSON.parse(localStorage.getItem(CATKEY)||'null');if(parsed&&Arr
 let expCats=savedCats.expense, incCats=savedCats.income;
 let transactions=load(), currentType='expense', editingId=null;
 const fmt=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(n||0);
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const monthNow=()=>today().slice(0,7);
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
 function save(){localStorage.setItem(KEY,JSON.stringify(transactions))}
@@ -157,7 +146,7 @@ function sum(arr,type){return arr.filter(t=>t.type===type).reduce((s,t)=>s+Numbe
 function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function render(){
  const m=monthNow(), items=monthItems(m), inc=sum(items,'income'), exp=sum(items,'expense');
- document.getElementById('monthLabel').textContent=new Date().toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+ document.getElementById('monthLabel').textContent=new Intl.DateTimeFormat('en-IN',{month:'short',year:'numeric'}).format(new Date());
  document.getElementById('todayLabel').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'});
  document.getElementById('incomeTotal').textContent=fmt(inc);document.getElementById('expenseTotal').textContent=fmt(exp);document.getElementById('todayExpenseTotal').textContent=fmt(sum(transactions.filter(t=>t.date===today()),'expense'));
  renderTopSpending(items);renderRecent();renderHistory();renderReports();
@@ -168,7 +157,8 @@ function renderRecent(){let a=[...transactions].sort((x,y)=>y.date.localeCompare
 function renderHistory(){let q=(document.getElementById('search')?.value||'').toLowerCase(),m=document.getElementById('monthFilter')?.value||'',ty=document.getElementById('typeFilter')?.value||'all';let a=[...transactions].filter(t=>(!m||t.date.startsWith(m))&&(ty==='all'||t.type===ty)&&(`${t.description} ${t.category} ${t.payment}`.toLowerCase().includes(q))).sort((x,y)=>y.date.localeCompare(x.date)||y.created-x.created);document.getElementById('countLabel').textContent=a.length+' records';document.getElementById('historyList').innerHTML=a.length?a.map(t=>txHTML(t,true)).join(''):'<div class="empty">No matching transactions.</div>'}
 function renderReports(){let m=document.getElementById('reportMonth')?.value||monthNow(),a=monthItems(m),total=sum(a,'expense'),groups={};a.filter(t=>t.type==='expense').forEach(t=>groups[t.category]=(groups[t.category]||0)+Number(t.amount));let sorted=Object.entries(groups).sort((x,y)=>y[1]-x[1]);let html=`<div style="display:flex;justify-content:space-between;margin:16px 0"><span class="subtle">Total expenses</span><b>${fmt(total)}</b></div>`;html+=sorted.length?sorted.map(([c,v])=>`<div class="barrow"><div class="barlabel"><span>${escapeHTML(c)}</span><b>${fmt(v)}</b></div><div class="bar"><span style="width:${total?Math.max(2,v/total*100):0}%"></span></div></div>`).join(''):'<div class="empty">No expenses for this month.</div>';html+=`<div class="note">Income recorded this month: ${fmt(sum(a,'income'))}</div>`;document.getElementById('reportContent').innerHTML=html}
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='history')renderHistory();if(id==='reports')renderReports();if(id==='categories')renderCategoryManager();window.scrollTo(0,0)}
-function setTheme(color){if(!/^#[0-9a-f]{6}$/i.test(color))return;document.documentElement.style.setProperty('--green',color);document.documentElement.style.setProperty('--green2',color+'1a');localStorage.setItem(THEMEKEY,color);const picker=document.getElementById('customTheme');if(picker)picker.value=color}
+function setTheme(color){if(!/^#[0-9a-f]{6}$/i.test(color))return;document.documentElement.style.setProperty('--green',color);document.documentElement.style.setProperty('--green2',color+'1a');localStorage.setItem(THEMEKEY,color);const picker=document.getElementById('customTheme');if(picker)picker.value=color;const headerPicker=document.getElementById('headerCustomTheme');if(headerPicker)headerPicker.value=color;const select=document.getElementById('themeSelect');if(select){const known=['#174d3a','#2457a6','#8a4f24','#7045a3'];select.value=known.includes(color.toLowerCase())?color.toLowerCase():'custom';if(headerPicker)headerPicker.hidden=select.value!=='custom'}}
+function handleThemeSelect(value){const picker=document.getElementById('headerCustomTheme');if(value==='custom'){if(picker){picker.hidden=false;picker.click()}return}if(picker)picker.hidden=true;setTheme(value)}
 function persistCats(){localStorage.setItem(CATKEY,JSON.stringify({expense:expCats,income:incCats}))}
 function setType(t){currentType=t;document.getElementById('expenseType').classList.toggle('chosen',t==='expense');document.getElementById('incomeType').classList.toggle('chosen',t==='income');document.getElementById('formTitle').textContent=t==='expense'?'Add expense':'Add income';let c=t==='expense'?expCats:incCats;document.getElementById('category').innerHTML=c.map(x=>`<option>${escapeHTML(x)}</option>`).join('')}
 function renderCategoryManager(){const type=document.getElementById('catType')?.value||'expense',cats=type==='expense'?expCats:incCats;document.getElementById('categoryList').innerHTML=cats.map((c,i)=>`<div class="transaction"><div class="txinfo"><div class="txname">${escapeHTML(c)}</div></div><button class="danger" onclick="removeCategory('${type}',${i})">Delete</button></div>`).join('')}
