@@ -138,10 +138,11 @@ try{const parsed=JSON.parse(localStorage.getItem(CATKEY)||'null');if(parsed&&Arr
 let expCats=savedCats.expense, incCats=savedCats.income;
 let transactions=load(), currentType='expense', editingId=null;
 const fmt=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(n||0);
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 const monthNow=()=>today().slice(0,7);
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
 function save(){localStorage.setItem(KEY,JSON.stringify(transactions))}
+function refreshFromStorage(){transactions=load();try{const c=JSON.parse(localStorage.getItem(CATKEY)||'null');if(c&&Array.isArray(c.expense)&&Array.isArray(c.income)){expCats=c.expense;incCats=c.income}}catch(e){}const theme=localStorage.getItem(THEMEKEY);if(theme)setTheme(theme);render();if(document.getElementById('categories').classList.contains('active'))renderCategoryManager();}
 function monthItems(m){return transactions.filter(t=>t.date&&t.date.slice(0,7)===m)}
 function sum(arr,type){return arr.filter(t=>t.type===type).reduce((s,t)=>s+Number(t.amount),0)}
 function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -172,7 +173,7 @@ function renderReports(){
  html+=`<div class="note">Income recorded this month: ${fmt(income)}</div>`;
  document.getElementById('reportContent').innerHTML=html;
 }
-function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='history')renderHistory();if(id==='reports')renderReports();if(id==='categories')renderCategoryManager();window.scrollTo(0,0)}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));refreshFromStorage();if(id==='history')renderHistory();if(id==='reports')renderReports();if(id==='categories')renderCategoryManager();window.scrollTo(0,0)}
 function setTheme(color){if(!/^#[0-9a-f]{6}$/i.test(color))return;document.documentElement.style.setProperty('--green',color);document.documentElement.style.setProperty('--green2',color+'1a');localStorage.setItem(THEMEKEY,color);const picker=document.getElementById('customTheme');if(picker)picker.value=color;const headerPicker=document.getElementById('headerCustomTheme');if(headerPicker)headerPicker.value=color;const select=document.getElementById('themeSelect');if(select){const known=['#174d3a','#2457a6','#8a4f24','#7045a3'];select.value=known.includes(color.toLowerCase())?color.toLowerCase():'custom';if(headerPicker)headerPicker.hidden=select.value!=='custom'}}
 function handleThemeSelect(value){const picker=document.getElementById('headerCustomTheme');if(value==='custom'){if(picker){picker.hidden=false;picker.click()}return}if(picker)picker.hidden=true;setTheme(value)}
 function persistCats(){localStorage.setItem(CATKEY,JSON.stringify({expense:expCats,income:incCats}))}
@@ -200,31 +201,26 @@ function exportCSV(){let rows=[['Date','Type','Amount INR','Category','Descripti
 async function shareBackup(){let data={app:'My Expenses',version:2,exportedAt:new Date().toISOString(),transactions,categories:{expense:expCats,income:incCats},theme:localStorage.getItem(THEMEKEY)||'#174d3a'};let file=new File([JSON.stringify(data,null,2)],'my-expenses-backup-'+today()+'.json',{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'My Expenses backup',text:'Save this backup to iCloud Drive or Google Drive.'})}catch(e){}}else backupJSON()}
 function restoreJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result),a=Array.isArray(d)?d:d.transactions;if(!Array.isArray(a))throw Error();if(!confirm('Restore '+a.length+' transactions? Existing records with matching IDs will not be duplicated.'))return;let map=new Map(transactions.map(t=>[t.id,t]));a.forEach((t,i)=>{if(!t.id)t.id='restored-'+i+'-'+Date.now();if(!map.has(t.id))map.set(t.id,t)});transactions=[...map.values()];if(d.categories&&Array.isArray(d.categories.expense)&&Array.isArray(d.categories.income)){expCats=d.categories.expense;incCats=d.categories.income;persistCats()}if(d.theme)setTheme(d.theme);save();render();alert('Restore complete. '+transactions.length+' total records are now on this device.')}catch(err){alert('This backup file could not be read.')}e.target.value=''};r.readAsText(f)}
 document.getElementById('reportMonth').value=monthNow();
+// Keep every open tab and installed Home Screen view in sync with saved data.
+window.addEventListener('storage',e=>{if([KEY,CATKEY,THEMEKEY].includes(e.key))refreshFromStorage()});
+window.addEventListener('pageshow',()=>refreshFromStorage());
+window.addEventListener('focus',()=>refreshFromStorage());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshFromStorage()});
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  let refreshing = false;
-  const banner = document.getElementById('updateBanner');
-  const applyButton = document.getElementById('applyUpdate');
-  function showUpdate(){ banner.style.display='block'; }
-  navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(!refreshing){refreshing=true;window.location.reload();}
-  });
-  navigator.serviceWorker.register('./sw.js').then(reg=>{
-    if(reg.waiting && navigator.serviceWorker.controller) showUpdate();
-    reg.addEventListener('updatefound',()=>{
-      const worker=reg.installing;
-      if(!worker)return;
-      worker.addEventListener('statechange',()=>{
-        if(worker.state==='installed' && navigator.serviceWorker.controller) showUpdate();
-      });
-    });
-    // Check GitHub Pages for a newer service worker whenever the app is opened.
-    reg.update().catch(()=>{});
+  let refreshing=false;
+  const banner=document.getElementById('updateBanner');
+  const applyButton=document.getElementById('applyUpdate');
+  function showUpdate(){if(banner)banner.style.display='block'}
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!refreshing){refreshing=true;window.location.reload()}});
+  navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>{
+    const check=()=>reg.update().catch(()=>{});
+    if(reg.waiting && navigator.serviceWorker.controller)showUpdate();
+    reg.addEventListener('updatefound',()=>{const worker=reg.installing;if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)showUpdate()})});
+    check();window.addEventListener('focus',check);document.addEventListener('visibilitychange',()=>{if(!document.hidden)check()});
+    // iOS may suspend background timers; this supplements checks on open/focus.
+    setInterval(()=>{if(!document.hidden)check()},5*60*1000);
   }).catch(()=>{});
-  applyButton.addEventListener('click',async()=>{
-    const reg=await navigator.serviceWorker.getRegistration();
-    if(reg && reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-    else window.location.reload();
-  });
+  if(applyButton)applyButton.addEventListener('click',async()=>{const reg=await navigator.serviceWorker.getRegistration();if(reg&&reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});else{await reg?.update().catch(()=>{});window.location.reload()}});
 }
 setTheme(localStorage.getItem(THEMEKEY)||'#174d3a');setType('expense');render();
 </script>
