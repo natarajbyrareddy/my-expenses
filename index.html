@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#174d3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="My Expenses">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>My Expenses</title>
+<style>
+:root{--green:#174d3a;--green2:#e8f1ec;--ink:#17231d;--muted:#758078;--line:#e7ece8;--bg:#f6f8f6;--white:#fff;--red:#bd4c45}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:var(--green);color:white;padding:20px 18px 24px;border-radius:0 0 24px 24px}
+.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:20px;font-weight:750;letter-spacing:-.4px}.month{font-size:13px;opacity:.85}
+main{max-width:680px;margin:auto;padding:16px 16px 100px}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.card{background:white;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 2px 10px #153b2410}
+.card small{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.amount{font-size:21px;font-weight:750;letter-spacing:-.5px}.balance{grid-column:1/-1;background:#f0f6f2}
+.sectionhead{display:flex;justify-content:space-between;align-items:center;margin:23px 2px 11px}.sectionhead h2{font-size:16px;margin:0}.subtle{color:var(--muted);font-size:12px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button,.button{border:0;border-radius:12px;padding:13px 14px;font-weight:650;font-size:14px;cursor:pointer}
+.primary{background:var(--green);color:white}.secondary{background:var(--green2);color:var(--green)}
+.transaction{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--line)}
+.dot{width:40px;height:40px;border-radius:13px;background:var(--green2);display:grid;place-items:center;font-size:18px;flex:none}
+.txinfo{flex:1;min-width:0}.txname{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.txmeta{font-size:12px;color:var(--muted);margin-top:4px}
+.txamt{font-weight:700;white-space:nowrap}.expense{color:var(--ink)}.income{color:var(--green)}
+.empty{text-align:center;color:var(--muted);padding:25px 10px;background:white;border-radius:15px}
+nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:10px 8px calc(10px + env(safe-area-inset-bottom));z-index:4}
+nav button{background:none;color:var(--muted);padding:8px 18px}nav button.active{color:var(--green);background:var(--green2)}
+.view{display:none}.view.active{display:block}
+form{display:grid;gap:12px}.field label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px 2px}
+input,select{width:100%;border:1px solid var(--line);background:white;border-radius:11px;padding:13px;font:inherit;color:var(--ink)}
+.typepick{display:grid;grid-template-columns:1fr 1fr;gap:8px}.typepick button{background:#eef2ef;color:var(--muted)}.typepick button.chosen{background:var(--green);color:white}
+.formcard{background:white;padding:16px;border-radius:17px;border:1px solid var(--line)}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:9px}.tools button{font-size:13px}
+.note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
+.barrow{margin:13px 0}.barlabel{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}.bar{height:8px;border-radius:20px;background:#e9efeb;overflow:hidden}.bar span{display:block;height:100%;background:var(--green);border-radius:20px}
+.filter{margin-bottom:10px}
+.danger{color:var(--red);background:#fbefee}
+@media(min-width:560px){.summary{grid-template-columns:repeat(3,1fr)}.balance{grid-column:auto}}
+</style>
+</head>
+<body>
+<header>
+ <div class="top"><div class="brand">My Expenses</div><div class="month" id="monthLabel"></div></div>
+ <div class="summary">
+  <div class="card"><small>Income this month</small><div class="amount" id="incomeTotal">₹0</div></div>
+  <div class="card"><small>Expenses this month</small><div class="amount" id="expenseTotal">₹0</div></div>
+  <div class="card balance"><small>Monthly balance</small><div class="amount" id="balanceTotal">₹0</div></div>
+ </div>
+</header>
+<main>
+<section class="view active" id="dashboard">
+ <div class="sectionhead"><h2>Quick actions</h2><span class="subtle" id="todayLabel"></span></div>
+ <div class="actions"><button class="primary" onclick="openAdd('expense')">＋ Add expense</button><button class="secondary" onclick="openAdd('income')">＋ Add income</button></div>
+ <div class="sectionhead"><h2>Recent transactions</h2><button class="secondary" onclick="showView('history')">See all</button></div>
+ <div id="recentList"></div>
+</section>
+<section class="view" id="add">
+ <div class="sectionhead"><h2 id="formTitle">Add expense</h2><span class="subtle">New transaction</span></div>
+ <div class="formcard">
+ <form id="txForm">
+  <div class="typepick"><button type="button" id="expenseType" class="chosen" onclick="setType('expense')">Expense</button><button type="button" id="incomeType" onclick="setType('income')">Income</button></div>
+  <div class="field"><label>Amount (₹)</label><input id="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div>
+  <div class="field"><label>Category</label><select id="category"></select></div>
+  <div class="field"><label>Description (optional)</label><input id="description" maxlength="80" placeholder="What was it for?"></div>
+  <div class="row"><div class="field"><label>Date</label><input id="date" type="date" required></div><div class="field"><label>Payment method</label><select id="payment"><option>UPI</option><option>Cash</option><option>Debit card</option><option>Credit card</option><option>Bank transfer</option><option>Other</option></select></div></div>
+  <button class="primary" type="submit">Save transaction</button>
+  <button class="secondary" type="button" onclick="showView('dashboard')">Cancel</button>
+ </form>
+ </div>
+</section>
+<section class="view" id="history">
+ <div class="sectionhead"><h2>All transactions</h2><span class="subtle" id="countLabel"></span></div>
+ <input class="filter" id="search" placeholder="Search description or category…" oninput="renderHistory()">
+ <div class="row filter"><input id="monthFilter" type="month" onchange="renderHistory()"><select id="typeFilter" onchange="renderHistory()"><option value="all">All types</option><option value="expense">Expenses</option><option value="income">Income</option></select></div>
+ <div id="historyList"></div>
+</section>
+<section class="view" id="reports">
+ <div class="sectionhead"><h2>Monthly report</h2><span class="subtle">By category</span></div>
+ <div class="formcard"><div class="field"><label>Choose month</label><input id="reportMonth" type="month" onchange="renderReports()"></div><div id="reportContent"></div></div>
+ <div class="sectionhead"><h2>Backup & restore</h2></div>
+ <div class="formcard">
+  <div class="tools"><button class="secondary" onclick="backupJSON()">Export full backup</button><button class="secondary" onclick="exportCSV()">Export CSV</button><button class="secondary" onclick="document.getElementById('restoreFile').click()">Restore backup</button><button class="secondary" onclick="shareBackup()">Share backup</button></div>
+  <input id="restoreFile" type="file" accept=".json,application/json" hidden onchange="restoreJSON(event)">
+  <div class="note">Your transactions are stored on this iPhone in this browser. Export a JSON backup regularly and save it to iCloud Drive and Google Drive. This first version does not silently sync to cloud services. Keep a backup before clearing browser data or changing phones.</div>
+  <div class="note" id="backupStatus">Backup status: No backup created yet.</div>
+ </div>
+</section>
+</main>
+<nav><button class="active" data-view="dashboard" onclick="showView('dashboard')">Home</button><button data-view="history" onclick="showView('history')">History</button><button data-view="reports" onclick="showView('reports')">Reports</button></nav>
+<script>
+const KEY='myExpenses.transactions.v1';
+const expCats=['Food','Groceries','Transport','Fuel','Shopping','Bills','Health','Education','Entertainment','Home','Travel','Other'];
+const incCats=['Salary','Business','Interest','Gift','Other income'];
+let transactions=load(), currentType='expense';
+const fmt=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(n||0);
+const today=()=>new Date().toISOString().slice(0,10);
+const monthNow=()=>today().slice(0,7);
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
+function save(){localStorage.setItem(KEY,JSON.stringify(transactions))}
+function monthItems(m){return transactions.filter(t=>t.date&&t.date.slice(0,7)===m)}
+function sum(arr,type){return arr.filter(t=>t.type===type).reduce((s,t)=>s+Number(t.amount),0)}
+function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){
+ const m=monthNow(), items=monthItems(m), inc=sum(items,'income'), exp=sum(items,'expense');
+ document.getElementById('monthLabel').textContent=new Date().toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+ document.getElementById('todayLabel').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+ document.getElementById('incomeTotal').textContent=fmt(inc);document.getElementById('expenseTotal').textContent=fmt(exp);document.getElementById('balanceTotal').textContent=fmt(inc-exp);
+ renderRecent();renderHistory();renderReports();
+}
+function txHTML(t){return `<div class="transaction"><div class="dot">${t.type==='income'?'↙':'↗'}</div><div class="txinfo"><div class="txname">${escapeHTML(t.description||t.category)}</div><div class="txmeta">${escapeHTML(t.category)} · ${new Date(t.date+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})} · ${escapeHTML(t.payment||'')}</div></div><div class="txamt ${t.type}">${t.type==='income'?'+':'−'}${fmt(t.amount)}</div></div>`}
+function renderRecent(){let a=[...transactions].sort((x,y)=>y.date.localeCompare(x.date)||y.created-y.created).slice(0,6);document.getElementById('recentList').innerHTML=a.length?a.map(txHTML).join(''):'<div class="empty">No transactions yet. Add your first expense.</div>'}
+function renderHistory(){let q=(document.getElementById('search')?.value||'').toLowerCase(),m=document.getElementById('monthFilter')?.value||'',ty=document.getElementById('typeFilter')?.value||'all';let a=[...transactions].filter(t=>(!m||t.date.startsWith(m))&&(ty==='all'||t.type===ty)&&(`${t.description} ${t.category} ${t.payment}`.toLowerCase().includes(q))).sort((x,y)=>y.date.localeCompare(x.date)||y.created-x.created);document.getElementById('countLabel').textContent=a.length+' records';document.getElementById('historyList').innerHTML=a.length?a.map(t=>`<div onclick="deleteTx('${t.id}')" title="Tap to delete" style="cursor:pointer">${txHTML(t)}</div>`).join(''):'<div class="empty">No matching transactions.</div>'}
+function renderReports(){let m=document.getElementById('reportMonth')?.value||monthNow(),a=monthItems(m),total=sum(a,'expense'),groups={};a.filter(t=>t.type==='expense').forEach(t=>groups[t.category]=(groups[t.category]||0)+Number(t.amount));let sorted=Object.entries(groups).sort((x,y)=>y[1]-x[1]);let html=`<div style="display:flex;justify-content:space-between;margin:16px 0"><span class="subtle">Total expenses</span><b>${fmt(total)}</b></div>`;html+=sorted.length?sorted.map(([c,v])=>`<div class="barrow"><div class="barlabel"><span>${escapeHTML(c)}</span><b>${fmt(v)}</b></div><div class="bar"><span style="width:${total?Math.max(2,v/total*100):0}%"></span></div></div>`).join(''):'<div class="empty">No expenses for this month.</div>';html+=`<div class="note">Income: ${fmt(sum(a,'income'))} · Net: ${fmt(sum(a,'income')-total)}</div>`;document.getElementById('reportContent').innerHTML=html}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='history')renderHistory();if(id==='reports')renderReports();window.scrollTo(0,0)}
+function setType(t){currentType=t;document.getElementById('expenseType').classList.toggle('chosen',t==='expense');document.getElementById('incomeType').classList.toggle('chosen',t==='income');document.getElementById('formTitle').textContent=t==='expense'?'Add expense':'Add income';let c=t==='expense'?expCats:incCats;document.getElementById('category').innerHTML=c.map(x=>`<option>${x}</option>`).join('')}
+function openAdd(t){document.getElementById('txForm').reset();document.getElementById('date').value=today();setType(t);showView('add');document.getElementById('amount').focus()}
+document.getElementById('txForm').addEventListener('submit',e=>{e.preventDefault();let amount=Number(document.getElementById('amount').value);if(!(amount>0))return alert('Enter an amount greater than zero.');transactions.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),type:currentType,amount,category:document.getElementById('category').value,description:document.getElementById('description').value.trim(),date:document.getElementById('date').value,payment:document.getElementById('payment').value,created:Date.now()});save();render();showView('dashboard')});
+function deleteTx(id){if(confirm('Delete this transaction?')){transactions=transactions.filter(t=>t.id!==id);save();render()}}
+function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+function backupJSON(){let data={app:'My Expenses',version:1,exportedAt:new Date().toISOString(),transactions};download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'my-expenses-backup-'+today()+'.json');document.getElementById('backupStatus').textContent='Backup exported: '+new Date().toLocaleString('en-IN')}
+function exportCSV(){let rows=[['Date','Type','Amount INR','Category','Description','Payment'],...transactions.map(t=>[t.date,t.type,t.amount,t.category,t.description,t.payment])];let csv=rows.map(r=>r.map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\n');download(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),'my-expenses-'+today()+'.csv')}
+async function shareBackup(){let data={app:'My Expenses',version:1,exportedAt:new Date().toISOString(),transactions};let file=new File([JSON.stringify(data,null,2)],'my-expenses-backup-'+today()+'.json',{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'My Expenses backup',text:'Save this backup to iCloud Drive or Google Drive.'})}catch(e){}}else backupJSON()}
+function restoreJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result),a=Array.isArray(d)?d:d.transactions;if(!Array.isArray(a))throw Error();if(!confirm('Restore '+a.length+' transactions? Existing records with matching IDs will not be duplicated.'))return;let map=new Map(transactions.map(t=>[t.id,t]));a.forEach((t,i)=>{if(!t.id)t.id='restored-'+i+'-'+Date.now();if(!map.has(t.id))map.set(t.id,t)});transactions=[...map.values()];save();render();alert('Restore complete. '+transactions.length+' total records are now on this device.')}catch(err){alert('This backup file could not be read.')}e.target.value=''};r.readAsText(f)}
+document.getElementById('reportMonth').value=monthNow();
+if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+setType('expense');render();
+</script>
+</body></html>

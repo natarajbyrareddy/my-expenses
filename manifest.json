@@ -1,0 +1,9 @@
+{
+  "name": "My Expenses",
+  "short_name": "Expenses",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f8f6",
+  "theme_color": "#174d3a",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
