@@ -18,7 +18,7 @@ header{background:var(--green);color:white;padding:20px 18px 24px;border-radius:
 main{max-width:680px;margin:auto;padding:16px 16px 100px}
 .summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .card{background:white;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 2px 10px #153b2410}
-.card small{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.amount{font-size:21px;font-weight:750;letter-spacing:-.5px}.balance{grid-column:1/-1;background:#f0f6f2}
+.card small{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.amount{font-size:21px;font-weight:750;letter-spacing:-.5px;color:var(--ink)}.balance{grid-column:1/-1;background:#f0f6f2}
 .sectionhead{display:flex;justify-content:space-between;align-items:center;margin:23px 2px 11px}.sectionhead h2{font-size:16px;margin:0}.subtle{color:var(--muted);font-size:12px}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 button,.button{border:0;border-radius:12px;padding:13px 14px;font-weight:650;font-size:14px;cursor:pointer}
@@ -41,6 +41,7 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
 .barrow{margin:13px 0}.barlabel{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}.bar{height:8px;border-radius:20px;background:#e9efeb;overflow:hidden}.bar span{display:block;height:100%;background:var(--green);border-radius:20px}
 .filter{margin-bottom:10px}
 .danger{color:var(--red);background:#fbefee}
+.calc{margin-top:9px;padding:11px;background:#f5f8f6;border:1px solid var(--line);border-radius:13px}.calc-help{font-size:12px;color:var(--muted);margin:0 0 9px}.calc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.calc-grid button{min-height:46px;padding:8px;background:white;border:1px solid var(--line);color:var(--ink);font-size:17px}.calc-grid .calc-clear{background:#f9e9e8;color:#9d332e}.calc-grid .calc-equals{background:var(--green);color:white;grid-row:span 2}.calc-grid .calc-zero{grid-column:span 2}
 @media(min-width:560px){.summary{grid-template-columns:repeat(3,1fr)}.balance{grid-column:auto}}
 </style>
 </head>
@@ -65,7 +66,18 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
  <div class="formcard">
  <form id="txForm">
   <div class="typepick"><button type="button" id="expenseType" class="chosen" onclick="setType('expense')">Expense</button><button type="button" id="incomeType" onclick="setType('income')">Income</button></div>
-  <div class="field"><label>Amount (₹)</label><input id="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div>
+  <div class="field"><label>Amount (₹) — use the keypad or type an amount</label><input id="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" required>
+  <div class="calc" aria-label="Amount calculator">
+   <div class="calc-help">You can calculate before saving, e.g. 120 + 50</div>
+   <div class="calc-grid">
+    <button type="button" data-key="C" class="calc-clear">C</button><button type="button" data-key="back">⌫</button><button type="button" data-key="/">÷</button><button type="button" data-key="*">×</button>
+    <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button><button type="button" data-key="-">−</button>
+    <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button><button type="button" data-key="+">+</button>
+    <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button><button type="button" data-key="= " class="calc-equals">=</button>
+    <button type="button" data-key="0" class="calc-zero">0</button><button type="button" data-key=".">.</button>
+   </div>
+  </div>
+ </div>
   <div class="field"><label>Category</label><select id="category"></select></div>
   <div class="field"><label>Description (optional)</label><input id="description" maxlength="80" placeholder="What was it for?"></div>
   <div class="row"><div class="field"><label>Date</label><input id="date" type="date" required></div><div class="field"><label>Payment method</label><select id="payment"><option>UPI</option><option>Cash</option><option>Debit card</option><option>Credit card</option><option>Bank transfer</option><option>Other</option></select></div></div>
@@ -135,7 +147,17 @@ function renderCategoryManager(){const type=document.getElementById('catType')?.
 function addCategory(){const input=document.getElementById('newCategory'),name=input.value.trim(),type=document.getElementById('catType').value,cats=type==='expense'?expCats:incCats;if(!name)return alert('Enter a category name.');if(cats.some(c=>c.toLowerCase()===name.toLowerCase()))return alert('That category already exists.');cats.push(name);persistCats();input.value='';renderCategoryManager();if(currentType===type)setType(type)}
 function removeCategory(type,index){const cats=type==='expense'?expCats:incCats;if(cats.length<=1)return alert('Keep at least one category.');const name=cats[index];if(!confirm('Delete the category "'+name+'"? Existing transactions will be kept.'))return;cats.splice(index,1);persistCats();renderCategoryManager();if(currentType===type)setType(type)}
 function openAdd(t){document.getElementById('txForm').reset();document.getElementById('date').value=today();setType(t);showView('add');document.getElementById('amount').focus()}
-document.getElementById('txForm').addEventListener('submit',e=>{e.preventDefault();let amount=Number(document.getElementById('amount').value);if(!(amount>0))return alert('Enter an amount greater than zero.');transactions.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),type:currentType,amount,category:document.getElementById('category').value,description:document.getElementById('description').value.trim(),date:document.getElementById('date').value,payment:document.getElementById('payment').value,created:Date.now()});save();render();showView('dashboard')});
+function calculateExpression(expression){
+ const s=expression.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/\s+/g,'');let pos=0;
+ function number(){let start=pos;if(s[pos]==='+'||s[pos]==='-')pos++;while(/[0-9.]/.test(s[pos]||''))pos++;const part=s.slice(start,pos);if(!part||part==='+'||part==='-'||!/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(part))throw Error('number');return Number(part)}
+ function factor(){if(s[pos]==='+'){pos++;return factor()}if(s[pos]==='-'){pos++;return -factor()}if(s[pos]==='('){pos++;let v=expr();if(s[pos]!==')')throw Error('bracket');pos++;return v}return number()}
+ function term(){let v=factor();while(s[pos]==='*'||s[pos]==='/'){let op=s[pos++],r=factor();if(op==='/'&&r===0)throw Error('zero');v=op==='*'?v*r:v/r}return v}
+ function expr(){let v=term();while(s[pos]==='+'||s[pos]==='-'){let op=s[pos++],r=term();v=op==='+'?v+r:v-r}return v}
+ if(!s)throw Error('empty');const value=expr();if(pos!==s.length||!Number.isFinite(value))throw Error('invalid');return Math.round((value+Number.EPSILON)*100)/100;
+}
+function calcKey(key){const field=document.getElementById('amount');if(key==='C'){field.value='';return}if(key==='back'){field.value=field.value.slice(0,-1);return}if(key==='= '||key==='='){try{field.value=String(calculateExpression(field.value))}catch(e){alert('Please enter a valid calculation.');}return}field.value+=key;}
+document.querySelectorAll('.calc-grid button').forEach(button=>button.addEventListener('click',()=>calcKey(button.dataset.key)));
+document.getElementById('txForm').addEventListener('submit',e=>{e.preventDefault();let amount;try{amount=calculateExpression(document.getElementById('amount').value)}catch(err){return alert('Enter a valid amount or calculation.')}if(!(amount>0))return alert('Enter an amount greater than zero.');transactions.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),type:currentType,amount,category:document.getElementById('category').value,description:document.getElementById('description').value.trim(),date:document.getElementById('date').value,payment:document.getElementById('payment').value,created:Date.now()});save();render();showView('dashboard')});
 function deleteTx(id){if(confirm('Delete this transaction?')){transactions=transactions.filter(t=>t.id!==id);save();render()}}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
 function backupJSON(){let data={app:'My Expenses',version:1,exportedAt:new Date().toISOString(),transactions};download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'my-expenses-backup-'+today()+'.json');document.getElementById('backupStatus').textContent='Backup exported: '+new Date().toLocaleString('en-IN')}
