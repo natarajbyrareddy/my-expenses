@@ -1,4 +1,4 @@
-const CACHE='my-expenses-v13';
+const CACHE='my-expenses-v14';
 const ASSETS=['./','./index.html','./manifest.json','./icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
 self.addEventListener('message',event=>{if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting()});
