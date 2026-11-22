@@ -114,16 +114,8 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
  </div>
 </section>
 <section class="view" id="categories">
- <div class="sectionhead"><h2>Categories</h2><span class="subtle">Manage your lists</span></div>
- <div class="sectionhead"><h2>Manage categories</h2></div>
- <div class="formcard">
-  <div class="field"><label>Category type</label><select id="catType" onchange="renderCategoryManager()"><option value="expense">Expense category</option><option value="income">Income category</option></select></div>
-  <div class="row"><div class="field"><label>New category name</label><input id="newCategory" maxlength="30" placeholder="e.g. Pet care"></div><button class="primary" style="align-self:end" onclick="addCategory()">Add</button></div>
-  <div id="categoryList"></div>
-  <div class="note">You can create your own expense and income categories. Deleting a category won't delete old transactions recorded under it.</div>
- </div>
-
- <div class="sectionhead"><h2>Appearance</h2><span class="subtle">Choose your app colour</span></div>
+ <div class="sectionhead"><h2>Categories & Appearance</h2><span class="subtle">Personalise your app</span></div>
+ <div class="sectionhead"><h2>Change app theme</h2><span class="subtle">Choose a colour</span></div>
  <div class="formcard">
   <div class="theme-options">
    <button type="button" class="theme-choice" onclick="setTheme('#174d3a')"><span class="swatch" style="background:#174d3a"></span>Forest green</button>
@@ -134,6 +126,14 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
   <div class="field" style="margin-top:14px"><label>Choose a custom colour</label><input id="customTheme" type="color" value="#174d3a" onchange="setTheme(this.value)"></div>
   <div class="note">Your colour choice is saved on this iPhone.</div>
  </div>
+ <div class="sectionhead"><h2>Manage categories</h2></div>
+ <div class="formcard">
+  <div class="field"><label>Category type</label><select id="catType" onchange="renderCategoryManager()"><option value="expense">Expense category</option><option value="income">Income category</option></select></div>
+  <div class="row"><div class="field"><label>New category name</label><input id="newCategory" maxlength="30" placeholder="e.g. Pet care"></div><button class="primary" style="align-self:end" onclick="addCategory()">Add</button></div>
+  <div id="categoryList"></div>
+  <div class="note">You can create your own expense and income categories. Deleting a category won't delete old transactions recorded under it.</div>
+ </div>
+
 </section>
 </main>
 <nav><button class="active" data-view="dashboard" onclick="showView('dashboard')">Home</button><button data-view="history" onclick="showView('history')">History</button><button data-view="reports" onclick="showView('reports')">Reports</button><button data-view="categories" onclick="showView('categories')">Categories</button></nav>
