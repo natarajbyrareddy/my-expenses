@@ -163,7 +163,13 @@ function revealCategoryInput(){document.getElementById('categoryAddForm').hidden
 function hideCategoryInput(){document.getElementById('categoryAddForm').hidden=true;document.getElementById('showCategoryInput').hidden=false;document.getElementById('newCategory').value=''}
 function timestampText(t){if(!t.created)return 'Time not recorded';return new Date(Number(t.created)).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true})}
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
-function save(){localStorage.setItem(KEY,JSON.stringify(transactions))}
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(transactions));
+ // A storage event does not fire in the tab that made the change, so refresh
+ // this dashboard immediately and notify any other open app instances.
+ render();
+ try{if('BroadcastChannel' in window){const channel=new BroadcastChannel('myExpenses.sync.v1');channel.postMessage({type:'transactions-updated',at:Date.now()});channel.close()}}catch(e){}
+}
 function refreshFromStorage(){const raw=localStorage.getItem(KEY)||'[]';if(raw!==JSON.stringify(transactions)){transactions=load();render()}try{const rawCats=localStorage.getItem(CATKEY)||'null';if(rawCats!==JSON.stringify({expense:expCats,income:incCats})){const c=JSON.parse(rawCats);if(c&&Array.isArray(c.expense)&&Array.isArray(c.income)){expCats=c.expense;incCats=c.income;if(document.getElementById('categories').classList.contains('active'))renderCategoryManager()}}}catch(e){}const theme=localStorage.getItem(THEMEKEY);if(theme&&theme!==document.getElementById('themeSelect')?.value)setTheme(theme);}
 function monthItems(m){return transactions.filter(t=>t.date&&t.date.slice(0,7)===m)}
 function sum(arr,type){return arr.filter(t=>t.type===type).reduce((s,t)=>s+Number(t.amount),0)}
@@ -248,6 +254,7 @@ function restoreJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReade
 document.getElementById('reportMonth').value=monthNow();document.getElementById('monthFilter').value=monthNow();
 // Keep every open tab and installed Home Screen view in sync with saved data.
 window.addEventListener('storage',e=>{if([KEY,CATKEY,THEMEKEY].includes(e.key))refreshFromStorage()});
+if('BroadcastChannel' in window){try{const syncChannel=new BroadcastChannel('myExpenses.sync.v1');syncChannel.addEventListener('message',e=>{if(e.data?.type==='transactions-updated')refreshFromStorage()})}catch(e){}}
 window.addEventListener('pageshow',()=>refreshFromStorage());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshFromStorage()});
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
