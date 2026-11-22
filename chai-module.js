@@ -8,14 +8,26 @@
   const META_KEY = 'chaiMeta';
   const defaults = { brand: 'Cigarette', packPrice: 0, packSize: 20, halfTea: 0, fullTea: 0 };
   let settings = (() => {
-    try { return { ...defaults, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')) }; }
-    catch { return { ...defaults }; }
+    try {
+      const saved = { ...defaults, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')) };
+      if (!Array.isArray(saved.brands)) {
+        saved.brands = [{ id: 'legacy-default', name: saved.brand || 'Cigarette', packPrice: Number(saved.packPrice) || 0, packSize: Number(saved.packSize) || 20 }];
+      }
+      if (!saved.activeBrandId || !saved.brands.some(b => b.id === saved.activeBrandId)) saved.activeBrandId = saved.brands[0]?.id || 'legacy-default';
+      return saved;
+    } catch {
+      return { ...defaults, brands: [{ id: 'legacy-default', name: 'Cigarette', packPrice: 0, packSize: 20 }], activeBrandId: 'legacy-default' };
+    }
   })();
+  const activeBrand = () => settings.brands.find(b => b.id === settings.activeBrandId) || settings.brands[0];
+  const unitCigarette = () => {
+    const b = activeBrand();
+    return b && Number(b.packSize) > 0 ? Number(b.packPrice) / Number(b.packSize) : 0;
+  };
 
   const money = n => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(n) || 0);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const dateToday = () => typeof today === 'function' ? today() : new Date().toISOString().slice(0,10);
-  const unitCigarette = () => Number(settings.packSize) > 0 ? Number(settings.packPrice) / Number(settings.packSize) : 0;
   const entries = () => transactions.filter(t => t.category === CATEGORY && t.chaiMeta);
   const meta = t => t.chaiMeta || {};
   const sum = (list, predicate) => list.filter(predicate).reduce((n,t) => n + Number(t.amount || 0), 0);
@@ -31,7 +43,7 @@
     // Five destinations must fit the iPhone bottom bar without horizontal clipping.
     const navStyle = document.createElement('style');
     navStyle.id = 'chaiNavFit';
-    navStyle.textContent = 'nav{display:flex;justify-content:space-between;gap:2px}nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px;white-space:normal;line-height:1.2}.summary{grid-template-columns:1fr 1fr}.card.primary-spend{grid-column:auto;padding:16px}.card.primary-spend .amount{font-size:23px}';
+    navStyle.textContent = 'nav{display:flex;justify-content:space-between;gap:2px}nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px;white-space:normal;line-height:1.2}.summary{grid-template-columns:1fr 1fr}.card.primary-spend{grid-column:auto;padding:16px}.card.primary-spend .amount{font-size:23px}.spend-breakdown{display:grid;gap:6px;margin-top:10px;padding-top:9px;border-top:1px solid #f0e2da;font-size:12px;color:#887b74}.spend-breakdown span{display:flex;justify-content:space-between;gap:6px}.spend-breakdown strong{color:#292421;font-weight:600}';
     document.head.appendChild(navStyle);
 
     const section = document.createElement('section');
@@ -40,8 +52,10 @@
       <div id="chaiModule">
         <header><div class="top"><div class="brand">Chai & Cigarettes</div><div class="month" id="chaiMonth"></div></div></header>
         <div class="summary">
-          <div class="card primary-spend"><small>My spending · This month</small><div class="amount" id="chaiMySpend">₹0</div></div>
-          <div class="card"><small>Group spending · This month</small><div class="amount" id="chaiGroupSpend">₹0</div></div>
+          <div class="card primary-spend"><small>My spending · This month</small><div class="amount" id="chaiMySpend">₹0</div>
+            <div class="spend-breakdown"><span>Cigarettes <strong id="chaiMyCigSpend">₹0</strong></span><span>Tea <strong id="chaiMyTeaSpend">₹0</strong></span></div></div>
+          <div class="card"><small>Group spending · This month</small><div class="amount" id="chaiGroupSpend">₹0</div>
+            <div class="spend-breakdown"><span>Cigarettes <strong id="chaiGroupCigSpend">₹0</strong></span><span>Tea <strong id="chaiGroupTeaSpend">₹0</strong></span></div></div>
         </div>
         <div class="sectionhead"><h2>My count</h2><span class="subtle" id="chaiMyToday"></span></div>
         <div class="insights-grid">
@@ -71,10 +85,14 @@
         <div class="sectionhead"><h2>Prices & brand</h2><span class="subtle">Configure once</span></div>
         <div class="formcard">
           <form id="chaiSettings">
-            <div class="field"><label for="chaiBrand">Cigarette brand</label><input id="chaiBrand" maxlength="35"></div>
+            <div class="field"><label for="chaiBrandSelect">Select cigarette brand</label><select id="chaiBrandSelect"></select></div>
             <div class="row">
+              <div class="field"><label for="chaiBrand">Brand name</label><input id="chaiBrand" maxlength="35" placeholder="e.g. Gold Flake"></div>
               <div class="field"><label for="chaiPackPrice">Packet price (₹)</label><input id="chaiPackPrice" type="number" min="0" step="0.01"></div>
+            </div>
+            <div class="row">
               <div class="field"><label for="chaiPackSize">Cigarettes per packet</label><input id="chaiPackSize" type="number" min="1" step="1"></div>
+              <div class="field"><label>&nbsp;</label><button class="secondary" type="button" id="chaiAddBrand">＋ Add brand</button></div>
             </div>
             <div class="note" id="chaiUnitPrice"></div>
             <div class="row">
@@ -92,40 +110,74 @@
     document.getElementById('chaiUndo').addEventListener('click', undoLast);
     document.getElementById('chaiSettings').addEventListener('submit', saveSettings);
     ['chaiPackPrice','chaiPackSize'].forEach(id => document.getElementById(id).addEventListener('input', updateUnitPrice));
+    document.getElementById('chaiBrandSelect').addEventListener('change', selectBrand);
+    document.getElementById('chaiAddBrand').addEventListener('click', addBrand);
     fillSettings();
     renderModule();
   }
 
   function fillSettings() {
-    document.getElementById('chaiBrand').value = settings.brand;
-    document.getElementById('chaiPackPrice').value = settings.packPrice || '';
-    document.getElementById('chaiPackSize').value = settings.packSize || 20;
+    const select = document.getElementById('chaiBrandSelect');
+    select.innerHTML = settings.brands.map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
+    select.value = settings.activeBrandId;
+    const brand = activeBrand() || { name: '', packPrice: 0, packSize: 20 };
+    document.getElementById('chaiBrand').value = brand.name || '';
+    document.getElementById('chaiPackPrice').value = brand.packPrice || '';
+    document.getElementById('chaiPackSize').value = brand.packSize || 20;
     document.getElementById('chaiHalfPrice').value = settings.halfTea || '';
     document.getElementById('chaiFullPrice').value = settings.fullTea || '';
     updateUnitPrice();
   }
+  function selectBrand() {
+    settings.activeBrandId = document.getElementById('chaiBrandSelect').value;
+    fillSettings();
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }
   function updateUnitPrice() {
     const price = Number(document.getElementById('chaiPackPrice').value || 0);
     const size = Number(document.getElementById('chaiPackSize').value || 0);
-    document.getElementById('chaiUnitPrice').textContent = size > 0 && price > 0 ? `Per cigarette: ${money(price / size)} (packet price ÷ packet size)` : 'Enter packet price and packet size to calculate per-cigarette cost.';
+    document.getElementById('chaiUnitPrice').textContent = size > 0 && price > 0 ? `Selected brand cost per cigarette: ${money(price / size)}` : 'Enter packet price and packet size to calculate per-cigarette cost.';
+  }
+  function addBrand() {
+    const name = document.getElementById('chaiBrand').value.trim();
+    const price = Number(document.getElementById('chaiPackPrice').value || 0);
+    const size = Number(document.getElementById('chaiPackSize').value || 0);
+    if (!name) return showToast('Enter a brand name first.');
+    if (!(size > 0)) return showToast('Enter a valid packet size.');
+    const existing = settings.brands.find(b => b.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      existing.packPrice = price; existing.packSize = size; settings.activeBrandId = existing.id;
+    } else {
+      const brand = { id: 'brand-' + Date.now(), name, packPrice: price, packSize: size };
+      settings.brands.push(brand); settings.activeBrandId = brand.id;
+    }
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    fillSettings(); showToast('Brand added. It is now selected.');
   }
   function saveSettings(e) {
     e.preventDefault();
     const size = Number(document.getElementById('chaiPackSize').value);
+    const name = document.getElementById('chaiBrand').value.trim();
+    if (!name) return showToast('Enter a brand name.');
     if (!(size > 0)) return showToast('Enter a valid packet size.');
-    settings = {
-      brand: document.getElementById('chaiBrand').value.trim() || 'Cigarette',
-      packPrice: Number(document.getElementById('chaiPackPrice').value || 0),
-      packSize: size,
-      halfTea: Number(document.getElementById('chaiHalfPrice').value || 0),
-      fullTea: Number(document.getElementById('chaiFullPrice').value || 0)
-    };
+    let brand = activeBrand();
+    if (!brand || brand.name.toLowerCase() !== name.toLowerCase()) {
+      brand = { id: 'brand-' + Date.now(), name, packPrice: 0, packSize: size };
+      settings.brands.push(brand); settings.activeBrandId = brand.id;
+    }
+    brand.name = name;
+    brand.packPrice = Number(document.getElementById('chaiPackPrice').value || 0);
+    brand.packSize = size;
+    settings.halfTea = Number(document.getElementById('chaiHalfPrice').value || 0);
+    settings.fullTea = Number(document.getElementById('chaiFullPrice').value || 0);
+    // Keep legacy fields populated for compatibility with older builds.
+    settings.brand = brand.name; settings.packPrice = brand.packPrice; settings.packSize = brand.packSize;
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    fillSettings(); showToast('Chai & Cigarettes prices saved.');
+    fillSettings(); showToast('Brand and tea prices saved.');
   }
   function addEntry(owner, kind) {
     let amount, label, item;
-    if (kind === 'cigarette') { amount = unitCigarette(); label = 'Cigarette'; item = settings.brand; }
+    if (kind === 'cigarette') { amount = unitCigarette(); label = 'Cigarette'; item = activeBrand()?.name || 'Cigarette'; }
     else if (kind === 'half') { amount = Number(settings.halfTea); label = 'Half chai'; item = 'Half chai'; }
     else { amount = Number(settings.fullTea); label = 'Full chai'; item = 'Full chai'; }
     if (!(amount > 0)) { showToast('Set the price first in Prices & brand.'); return; }
@@ -134,7 +186,7 @@
       type: 'expense', amount, category: CATEGORY,
       description: `${owner === 'my' ? 'My' : 'Group'} · ${label}${kind === 'cigarette' ? ' · ' + item : ''}`,
       date: dateToday(), payment: 'Cash', created: Date.now(),
-      chaiMeta: { owner, kind, label, item, unitPrice: amount, brand: settings.brand }
+      chaiMeta: { owner, kind, label, item, unitPrice: amount, brand: activeBrand()?.name || 'Cigarette' }
     };
     transactions.push(record);
     save();
@@ -158,6 +210,11 @@
     document.getElementById('chaiMonth').textContent = typeof monthTitle === 'function' ? monthTitle(month) : month;
     document.getElementById('chaiMySpend').textContent = money(sum(my, () => true));
     document.getElementById('chaiGroupSpend').textContent = money(sum(group, () => true));
+    const spendFor = (list, kind) => sum(list, t => meta(t).kind === kind);
+    document.getElementById('chaiMyCigSpend').textContent = money(spendFor(my, 'cigarette'));
+    document.getElementById('chaiMyTeaSpend').textContent = money(spendFor(my, 'half') + spendFor(my, 'full'));
+    document.getElementById('chaiGroupCigSpend').textContent = money(spendFor(group, 'cigarette'));
+    document.getElementById('chaiGroupTeaSpend').textContent = money(spendFor(group, 'half') + spendFor(group, 'full'));
     const todayRows = all.filter(t => t.date === dateToday());
     document.getElementById('chaiMyToday').textContent = `${todayRows.filter(t => meta(t).owner === 'my').length} today`;
     document.getElementById('myCigCount').textContent = counts(my,'cigarette','my');
