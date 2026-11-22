@@ -46,6 +46,12 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
 </style>
 </head>
 <body>
+
+<div id="updateBanner" role="status" aria-live="polite" style="display:none;background:#fff4d6;color:#513d0a;padding:12px 16px;text-align:center;border-bottom:1px solid #ead9a5">
+  <span style="font-size:14px;font-weight:600">A new version of My Expenses is ready.</span>
+  <button type="button" id="applyUpdate" style="margin-left:10px;background:#174d3a;color:#fff;padding:9px 13px;border-radius:9px">Update now</button>
+</div>
+
 <header>
  <div class="top"><div class="brand">My Expenses</div><div class="month" id="monthLabel"></div></div>
  <div class="summary">
@@ -165,7 +171,32 @@ function exportCSV(){let rows=[['Date','Type','Amount INR','Category','Descripti
 async function shareBackup(){let data={app:'My Expenses',version:1,exportedAt:new Date().toISOString(),transactions};let file=new File([JSON.stringify(data,null,2)],'my-expenses-backup-'+today()+'.json',{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'My Expenses backup',text:'Save this backup to iCloud Drive or Google Drive.'})}catch(e){}}else backupJSON()}
 function restoreJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result),a=Array.isArray(d)?d:d.transactions;if(!Array.isArray(a))throw Error();if(!confirm('Restore '+a.length+' transactions? Existing records with matching IDs will not be duplicated.'))return;let map=new Map(transactions.map(t=>[t.id,t]));a.forEach((t,i)=>{if(!t.id)t.id='restored-'+i+'-'+Date.now();if(!map.has(t.id))map.set(t.id,t)});transactions=[...map.values()];save();render();alert('Restore complete. '+transactions.length+' total records are now on this device.')}catch(err){alert('This backup file could not be read.')}e.target.value=''};r.readAsText(f)}
 document.getElementById('reportMonth').value=monthNow();
-if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  let refreshing = false;
+  const banner = document.getElementById('updateBanner');
+  const applyButton = document.getElementById('applyUpdate');
+  function showUpdate(){ banner.style.display='block'; }
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!refreshing){refreshing=true;window.location.reload();}
+  });
+  navigator.serviceWorker.register('./sw.js').then(reg=>{
+    if(reg.waiting && navigator.serviceWorker.controller) showUpdate();
+    reg.addEventListener('updatefound',()=>{
+      const worker=reg.installing;
+      if(!worker)return;
+      worker.addEventListener('statechange',()=>{
+        if(worker.state==='installed' && navigator.serviceWorker.controller) showUpdate();
+      });
+    });
+    // Check GitHub Pages for a newer service worker whenever the app is opened.
+    reg.update().catch(()=>{});
+  }).catch(()=>{});
+  applyButton.addEventListener('click',async()=>{
+    const reg=await navigator.serviceWorker.getRegistration();
+    if(reg && reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+    else window.location.reload();
+  });
+}
 setType('expense');render();
 </script>
 </body></html>
