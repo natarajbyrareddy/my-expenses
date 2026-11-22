@@ -25,12 +25,14 @@
     if (document.getElementById('chaiModule')) return;
     const nav = document.querySelector('nav');
     const button = document.createElement('button');
-    button.type = 'button'; button.dataset.view = 'chai'; button.textContent = 'Chai'; button.setAttribute('aria-label', 'Chai & Cigarettes');
+    button.type = 'button'; button.dataset.view = 'chai'; button.textContent = 'Chai'; button.setAttribute('aria-label', 'Chai & Cigarettes'); button.title = 'Chai & Cigarettes';
     button.addEventListener('click', () => showView('chai'));
     nav.appendChild(button);
-     const navStyle = document.createElement('style');
-navStyle.textContent = 'nav{display:flex;justify-content:space-between;gap:2px}nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px;white-space:normal;line-height:1.2}';
-document.head.appendChild(navStyle);
+    // Five destinations must fit the iPhone bottom bar without horizontal clipping.
+    const navStyle = document.createElement('style');
+    navStyle.id = 'chaiNavFit';
+    navStyle.textContent = 'nav{display:flex;justify-content:space-between;gap:2px}nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px;white-space:normal;line-height:1.2}.summary{grid-template-columns:1fr 1fr}.card.primary-spend{grid-column:auto;padding:16px}.card.primary-spend .amount{font-size:23px}';
+    document.head.appendChild(navStyle);
 
     const section = document.createElement('section');
     section.className = 'view'; section.id = 'chai';
