@@ -83,6 +83,13 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
 <section class="view" id="reports">
  <div class="sectionhead"><h2>Monthly report</h2><span class="subtle">By category</span></div>
  <div class="formcard"><div class="field"><label>Choose month</label><input id="reportMonth" type="month" onchange="renderReports()"></div><div id="reportContent"></div></div>
+ <div class="sectionhead"><h2>Manage categories</h2></div>
+ <div class="formcard">
+  <div class="field"><label>Category type</label><select id="catType" onchange="renderCategoryManager()"><option value="expense">Expense category</option><option value="income">Income category</option></select></div>
+  <div class="row"><div class="field"><label>New category name</label><input id="newCategory" maxlength="30" placeholder="e.g. Pet care"></div><button class="primary" style="align-self:end" onclick="addCategory()">Add</button></div>
+  <div id="categoryList"></div>
+  <div class="note">You can create your own expense and income categories. Deleting a category won't delete old transactions recorded under it.</div>
+ </div>
  <div class="sectionhead"><h2>Backup & restore</h2></div>
  <div class="formcard">
   <div class="tools"><button class="secondary" onclick="backupJSON()">Export full backup</button><button class="secondary" onclick="exportCSV()">Export CSV</button><button class="secondary" onclick="document.getElementById('restoreFile').click()">Restore backup</button><button class="secondary" onclick="shareBackup()">Share backup</button></div>
@@ -95,8 +102,12 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
 <nav><button class="active" data-view="dashboard" onclick="showView('dashboard')">Home</button><button data-view="history" onclick="showView('history')">History</button><button data-view="reports" onclick="showView('reports')">Reports</button></nav>
 <script>
 const KEY='myExpenses.transactions.v1';
-const expCats=['Food','Groceries','Transport','Fuel','Shopping','Bills','Health','Education','Entertainment','Home','Travel','Other'];
-const incCats=['Salary','Business','Interest','Gift','Other income'];
+const CATKEY='myExpenses.categories.v1';
+const defaultExpCats=['Food','Groceries','Transport','Fuel','Shopping','Bills','Health','Education','Entertainment','Home','Travel','Other'];
+const defaultIncCats=['Salary','Business','Interest','Gift','Other income'];
+let savedCats={expense:defaultExpCats,income:defaultIncCats};
+try{const parsed=JSON.parse(localStorage.getItem(CATKEY)||'null');if(parsed&&Array.isArray(parsed.expense)&&Array.isArray(parsed.income))savedCats=parsed}catch(e){}
+let expCats=savedCats.expense, incCats=savedCats.income;
 let transactions=load(), currentType='expense';
 const fmt=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(n||0);
 const today=()=>new Date().toISOString().slice(0,10);
@@ -117,8 +128,12 @@ function txHTML(t){return `<div class="transaction"><div class="dot">${t.type===
 function renderRecent(){let a=[...transactions].sort((x,y)=>y.date.localeCompare(x.date)||y.created-y.created).slice(0,6);document.getElementById('recentList').innerHTML=a.length?a.map(txHTML).join(''):'<div class="empty">No transactions yet. Add your first expense.</div>'}
 function renderHistory(){let q=(document.getElementById('search')?.value||'').toLowerCase(),m=document.getElementById('monthFilter')?.value||'',ty=document.getElementById('typeFilter')?.value||'all';let a=[...transactions].filter(t=>(!m||t.date.startsWith(m))&&(ty==='all'||t.type===ty)&&(`${t.description} ${t.category} ${t.payment}`.toLowerCase().includes(q))).sort((x,y)=>y.date.localeCompare(x.date)||y.created-x.created);document.getElementById('countLabel').textContent=a.length+' records';document.getElementById('historyList').innerHTML=a.length?a.map(t=>`<div onclick="deleteTx('${t.id}')" title="Tap to delete" style="cursor:pointer">${txHTML(t)}</div>`).join(''):'<div class="empty">No matching transactions.</div>'}
 function renderReports(){let m=document.getElementById('reportMonth')?.value||monthNow(),a=monthItems(m),total=sum(a,'expense'),groups={};a.filter(t=>t.type==='expense').forEach(t=>groups[t.category]=(groups[t.category]||0)+Number(t.amount));let sorted=Object.entries(groups).sort((x,y)=>y[1]-x[1]);let html=`<div style="display:flex;justify-content:space-between;margin:16px 0"><span class="subtle">Total expenses</span><b>${fmt(total)}</b></div>`;html+=sorted.length?sorted.map(([c,v])=>`<div class="barrow"><div class="barlabel"><span>${escapeHTML(c)}</span><b>${fmt(v)}</b></div><div class="bar"><span style="width:${total?Math.max(2,v/total*100):0}%"></span></div></div>`).join(''):'<div class="empty">No expenses for this month.</div>';html+=`<div class="note">Income: ${fmt(sum(a,'income'))} · Net: ${fmt(sum(a,'income')-total)}</div>`;document.getElementById('reportContent').innerHTML=html}
-function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='history')renderHistory();if(id==='reports')renderReports();window.scrollTo(0,0)}
-function setType(t){currentType=t;document.getElementById('expenseType').classList.toggle('chosen',t==='expense');document.getElementById('incomeType').classList.toggle('chosen',t==='income');document.getElementById('formTitle').textContent=t==='expense'?'Add expense':'Add income';let c=t==='expense'?expCats:incCats;document.getElementById('category').innerHTML=c.map(x=>`<option>${x}</option>`).join('')}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='history')renderHistory();if(id==='reports'){renderReports();renderCategoryManager()}window.scrollTo(0,0)}
+function persistCats(){localStorage.setItem(CATKEY,JSON.stringify({expense:expCats,income:incCats}))}
+function setType(t){currentType=t;document.getElementById('expenseType').classList.toggle('chosen',t==='expense');document.getElementById('incomeType').classList.toggle('chosen',t==='income');document.getElementById('formTitle').textContent=t==='expense'?'Add expense':'Add income';let c=t==='expense'?expCats:incCats;document.getElementById('category').innerHTML=c.map(x=>`<option>${escapeHTML(x)}</option>`).join('')}
+function renderCategoryManager(){const type=document.getElementById('catType')?.value||'expense',cats=type==='expense'?expCats:incCats;document.getElementById('categoryList').innerHTML=cats.map((c,i)=>`<div class="transaction"><div class="txinfo"><div class="txname">${escapeHTML(c)}</div></div><button class="danger" onclick="removeCategory('${type}',${i})">Delete</button></div>`).join('')}
+function addCategory(){const input=document.getElementById('newCategory'),name=input.value.trim(),type=document.getElementById('catType').value,cats=type==='expense'?expCats:incCats;if(!name)return alert('Enter a category name.');if(cats.some(c=>c.toLowerCase()===name.toLowerCase()))return alert('That category already exists.');cats.push(name);persistCats();input.value='';renderCategoryManager();if(currentType===type)setType(type)}
+function removeCategory(type,index){const cats=type==='expense'?expCats:incCats;if(cats.length<=1)return alert('Keep at least one category.');const name=cats[index];if(!confirm('Delete the category "'+name+'"? Existing transactions will be kept.'))return;cats.splice(index,1);persistCats();renderCategoryManager();if(currentType===type)setType(type)}
 function openAdd(t){document.getElementById('txForm').reset();document.getElementById('date').value=today();setType(t);showView('add');document.getElementById('amount').focus()}
 document.getElementById('txForm').addEventListener('submit',e=>{e.preventDefault();let amount=Number(document.getElementById('amount').value);if(!(amount>0))return alert('Enter an amount greater than zero.');transactions.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),type:currentType,amount,category:document.getElementById('category').value,description:document.getElementById('description').value.trim(),date:document.getElementById('date').value,payment:document.getElementById('payment').value,created:Date.now()});save();render();showView('dashboard')});
 function deleteTx(id){if(confirm('Delete this transaction?')){transactions=transactions.filter(t=>t.id!==id);save();render()}}
