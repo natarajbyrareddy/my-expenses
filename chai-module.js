@@ -41,6 +41,8 @@
     const section=document.createElement('section'); section.className='view'; section.id='chai';
     section.innerHTML=`<div id="chaiModule">
       <header><div class="top"><div class="brand">Chai & Cigarettes</div><div class="month" id="chaiMonth"></div></div></header>
+      <div class="chai-section-title">Spending · <span id="chaiSpendMonth"></span></div>
+      <div class="chai-spend"><div class="chai-mini">Total recorded spending</div><div class="chai-total" id="chaiTotalSpend">₹0</div><div class="chai-split"><div><small>Me</small><strong id="chaiMySpend">₹0</strong><div class="chai-mini" id="chaiMySplit"></div></div><div><small>Group</small><strong id="chaiGroupSpend">₹0</strong><div class="chai-mini" id="chaiGroupSplit"></div></div></div></div>
       <div class="formcard chai-panel chai-prices"><div class="sectionhead" style="margin-top:0"><h2>Prices & Brands</h2><span class="subtle">Select before adding</span></div>
         <div class="chai-grid chai-brand-row">
           <div class="field"><label for="chaiBrandSelect">Selected brand</label><select id="chaiBrandSelect"></select></div>
@@ -56,8 +58,6 @@
         </div>
         <button class="primary" type="button" id="chaiSaveTea">Save tea prices</button>
       </div>
-      <div class="chai-section-title">Spending · <span id="chaiSpendMonth"></span></div>
-      <div class="chai-spend"><div class="chai-mini">Total recorded spending</div><div class="chai-total" id="chaiTotalSpend">₹0</div><div class="chai-split"><div><small>Me</small><strong id="chaiMySpend">₹0</strong><div class="chai-mini" id="chaiMySplit"></div></div><div><small>Group</small><strong id="chaiGroupSpend">₹0</strong><div class="chai-mini" id="chaiGroupSplit"></div></div></div></div>
       <div class="sectionhead"><h2>My count</h2><span class="subtle" id="chaiMyToday"></span></div><div class="insights-grid"><div class="insight"><small>My cigarettes today</small><strong id="myCigCount">0</strong></div><div class="insight"><small>My chai today</small><strong id="myTeaCount">0</strong></div></div>
       <div class="sectionhead"><h2>Quick add · Me</h2><span class="subtle">One tap per item</span></div><div class="actions"><button class="primary" data-owner="my" data-kind="cigarette">＋ Cigarette</button><button class="secondary" data-owner="my" data-kind="half">＋ Half chai</button><button class="secondary" data-owner="my" data-kind="full">＋ Full chai</button><button class="secondary" id="chaiUndoMy">Undo last</button></div>
       <div class="sectionhead"><h2>Group count</h2><span class="subtle">Separate from my count</span></div><div class="insights-grid"><div class="insight"><small>Group cigarettes today</small><strong id="groupCigCount">0</strong></div><div class="insight"><small>Group chai today</small><strong id="groupTeaCount">0</strong></div></div>
