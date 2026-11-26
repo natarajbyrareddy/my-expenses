@@ -1,5 +1,5 @@
-const CACHE='my-expenses-v20';
-const ASSETS=['./','./index.html','./manifest.json','./icon.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./chai-module.js'];
+const CACHE='my-expenses-v21';
+const ASSETS=['./','./index.html','./manifest.json','./icon.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
 self.addEventListener('message',event=>{if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting()});
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('my-expenses-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
