@@ -78,65 +78,37 @@
 function addEntry(owner,kind){
   const b=activeBrand();
   let amount,label,item;
-
   if(kind==='cigarette'){
-    amount=Number(b?.price||0);
-    label='Cigarette';
-    item=b?.name||'Cigarette';
+    amount=Number(b?.price||0); label='Cigarette'; item=b?.name||'Cigarette';
   }else if(kind==='half'){
-    amount=Number(settings.halfTea);
-    label='Half chai';
-    item=label;
+    amount=Number(settings.halfTea); label='Half chai'; item=label;
   }else{
-    amount=Number(settings.fullTea);
-    label='Full chai';
-    item=label;
+    amount=Number(settings.fullTea); label='Full chai'; item=label;
   }
-
-  if(!(amount>0))
-    return showToast(kind==='cigarette'
-      ?'Set the selected brand price per cigarette first.'
-      :'Set the tea price first.');
-
+  if(!(amount>0)) return showToast(kind==='cigarette'?'Set the selected brand price per cigarette first.':'Set the tea price first.');
   const record={
     id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2),
-    type:'expense',
-    amount,
-    category:CATEGORY,
+    type:'expense', amount, category:CATEGORY,
     description:`${owner==='my'?'My':'Group'} · ${label}${kind==='cigarette'?' · '+item:''}`,
-    date:dateToday(),
-    created:Date.now(),
+    date:dateToday(), created:Date.now(),
     chaiMeta:{owner,kind,label,item,unitPrice:amount,brand:kind==='cigarette'?item:''}
   };
-
   transactions.push(record);
   save();
   renderModule();
-
   const name=kind==='cigarette'?'cigarette':'tea';
-  showToast(owner==='group'
-    ?`1 ${name} added to Group.`
-    :`1 ${name} added.`);
-}added.`);
-  }
-  function undoLast(owner){
-  const last=entries()
-    .filter(t=>meta(t).owner===owner)
-    .sort((a,b)=>Number(b.created||0)-Number(a.created||0))[0];
-
-  if(!last)
-    return showToast(`No ${owner==='my'?'personal':'group'} entry to undo.`);
-
-  const label=meta(last).label||'Entry';
-
-  if(!confirm(`Undo last ${owner==='my'?'personal':'group'} entry?\n${label} · ${money(last.amount)}\n\nCancel / OK`))
-    return;
-
-  transactions=transactions.filter(t=>String(t.id)!==String(last.id));
-  save();
-  renderModule();
-  showToast('Entry undone.');
+  showToast(owner==='group'?`1 ${name} added to Group.`:`1 ${name} added.`);
 }
+  function undoLast(owner){
+    const last=entries().filter(t=>meta(t).owner===owner).sort((a,b)=>Number(b.created||0)-Number(a.created||0))[0];
+    if(!last) return showToast(`No ${owner==='my'?'personal':'group'} entry to undo.`);
+    const label=meta(last).label||'Entry';
+    if(!confirm(`Undo last ${owner==='my'?'personal':'group'} entry?\n${label} · ${money(last.amount)}\n\nCancel / OK`)) return;
+    transactions=transactions.filter(t=>String(t.id)!==String(last.id));
+    save();
+    renderModule();
+    showToast('Entry undone.');
+  }
   function renderModule(){if(!document.getElementById('chaiModule'))return;const all=entries(),month=dateToday().slice(0,7),thisMonth=all.filter(t=>(t.date||'').slice(0,7)===month),my=thisMonth.filter(t=>meta(t).owner==='my'),group=thisMonth.filter(t=>meta(t).owner==='group'),todayRows=all.filter(t=>t.date===dateToday());document.getElementById('chaiMonth').textContent=monthTitle(month);document.getElementById('chaiSpendMonth').textContent=monthTitle(month);document.getElementById('chaiTotalSpend').textContent=money(sum(thisMonth));document.getElementById('chaiMySpend').textContent=money(sum(my));document.getElementById('chaiGroupSpend').textContent=money(sum(group));const split=a=>`${money(sum(a.filter(t=>meta(t).kind==='cigarette')))} cigarettes · ${money(sum(a.filter(t=>meta(t).kind!=='cigarette')))} tea`;document.getElementById('chaiMySplit').textContent=split(my);document.getElementById('chaiGroupSplit').textContent=split(group);document.getElementById('chaiMyToday').textContent=`${todayRows.filter(t=>meta(t).owner==='my').length} today`;document.getElementById('myCigCount').textContent=count(todayRows,'cigarette','my');document.getElementById('myTeaCount').textContent=count(todayRows,'half','my')+count(todayRows,'full','my');document.getElementById('groupCigCount').textContent=count(todayRows,'cigarette','group');document.getElementById('groupTeaCount').textContent=count(todayRows,'half','group')+count(todayRows,'full','group');renderReduction(all);}
   function renderReduction(all){const now=new Date(dateToday()+'T12:00:00'),start=new Date(now);start.setDate(start.getDate()-6);const days=[];for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);days.push(d.toLocaleDateString('en-CA'));}const counts=days.map(d=>all.filter(t=>t.date===d&&meta(t).owner==='my'&&meta(t).kind==='cigarette').length);const avg=counts.reduce((a,b)=>a+b,0)/7;document.getElementById('chaiAverage').textContent=avg.toFixed(1);document.getElementById('chaiTargetDisplay').textContent=settings.target?String(settings.target):'Not set';let note='Your seven-day average is based on recorded personal cigarette entries.';if(settings.baseline>0){const diff=settings.baseline-avg;note+=diff>=0?` You are ${diff.toFixed(1)} below your baseline of ${settings.baseline}/day.`:` You are ${Math.abs(diff).toFixed(1)} above your baseline of ${settings.baseline}/day.`;}if(settings.targetDate)note+=` Target date: ${dayLabel(settings.targetDate)}.`;document.getElementById('chaiReductionNote').textContent=note;}
   function toggleReport(){const host=document.getElementById('chaiReport'),show=host.classList.contains('chai-hidden');host.classList.toggle('chai-hidden');document.getElementById('chaiShowReport').textContent=show?'Hide Chai report':'View Chai report';if(show)renderChaiReport();}
