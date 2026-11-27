@@ -117,7 +117,7 @@ function addEntry(owner,kind){
   showToast(owner==='group'
     ?`1 ${name} added to Group.`
     :`1 ${name} added.`);
-}
+  }
   function undoLast(owner){
   const last=entries()
     .filter(t=>meta(t).owner===owner)
