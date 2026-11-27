@@ -37,7 +37,7 @@
     const nav = document.querySelector('nav');
     const button = document.createElement('button'); button.type='button'; button.dataset.view='chai'; button.textContent='Chai'; button.setAttribute('aria-label','Chai & Cigarettes');
     button.addEventListener('click', () => showView('chai')); nav.insertBefore(button, nav.children[1] || null);
-    const style=document.createElement('style'); style.id='chaiModuleStyle'; style.textContent=`nav{display:flex;justify-content:space-between;gap:2px}nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px}.chai-panel{margin:14px 0}.chai-spend{background:var(--theme-soft);border:1px solid var(--theme-mid);border-radius:18px;padding:17px}.chai-total{font-size:32px;font-weight:500;margin:5px 0 12px}.chai-split{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chai-split>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}.chai-split small{display:block;color:var(--muted);margin-bottom:5px}.chai-split strong{font-size:18px}.chai-table{width:100%;border-collapse:collapse;font-size:13px}.chai-table td,.chai-table th{padding:9px 5px;border-bottom:1px solid var(--line);text-align:left}.chai-table td:last-child,.chai-table th:last-child{text-align:right}.chai-hidden{display:none!important}.chai-mini{font-size:12px;color:var(--muted)}.chai-report-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chai-report-grid .insight{min-width:0}.chai-controls{display:flex;gap:8px;flex-wrap:wrap}.chai-controls>*{flex:1;min-width:110px}.chai-section-title{font-size:17px;font-weight:650;margin:22px 2px 10px}`; document.head.appendChild(style);
+    const style=document.createElement('style'); style.id='chaiModuleStyle'; style.textContent=`nav{display:flex;justify-content:space-between;gap:2px}nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px}.chai-panel{margin:14px 0}.chai-spend{background:var(--theme-soft);border:1px solid var(--theme-mid);border-radius:18px;padding:17px}.chai-total{font-size:32px;font-weight:500;margin:5px 0 12px}.chai-split{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chai-split>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}.chai-split small{display:block;color:var(--muted);margin-bottom:5px}.chai-split strong{font-size:18px}.chai-table{width:100%;border-collapse:collapse;font-size:13px}.chai-table td,.chai-table th{padding:9px 5px;border-bottom:1px solid var(--line);text-align:left}.chai-table td:last-child,.chai-table th:last-child{text-align:right}.chai-hidden{display:none!important}.chai-mini{font-size:12px;color:var(--muted)}.chai-report-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chai-report-grid .insight{min-width:0}.chai-controls{display:flex;gap:8px;flex-wrap:wrap}.chai-controls>*{flex:1;min-width:110px}.chai-section-title{font-size:17px;font-weight:650;margin:22px 2px 10px}.chai-brand-actions{display:flex;gap:8px;flex-wrap:wrap}.chai-brand-actions button{flex:0 1 auto}`; document.head.appendChild(style);
     const section=document.createElement('section'); section.className='view'; section.id='chai';
     section.innerHTML=`<div id="chaiModule">
       <header><div class="top"><div class="brand">Chai & Cigarettes</div><div class="month" id="chaiMonth"></div></div></header>
@@ -46,7 +46,7 @@
       <div class="formcard chai-panel"><div class="sectionhead" style="margin-top:0"><h2>Prices & Brands</h2><span class="subtle">Select before adding</span></div>
         <div class="field"><label for="chaiBrandSelect">Selected cigarette brand</label><select id="chaiBrandSelect"></select></div>
         <div class="row"><div class="field"><label for="chaiBrandName">Brand name</label><input id="chaiBrandName" maxlength="35" placeholder="e.g. Gold Flake"></div><div class="field"><label for="chaiCigPrice">Price per cigarette (₹)</label><input id="chaiCigPrice" type="number" min="0" step="0.01" inputmode="decimal"></div></div>
-        <button class="secondary" type="button" id="chaiSaveBrand">Save / Add brand</button>
+        <div class="chai-brand-actions"><button class="secondary" type="button" id="chaiSaveBrand">Save / Add brand</button><button class="secondary" type="button" id="chaiDeleteBrand">Delete selected brand</button></div>
         <div class="row" style="margin-top:10px"><div class="field"><label for="chaiHalfPrice">Half chai (₹)</label><input id="chaiHalfPrice" type="number" min="0" step="0.01"></div><div class="field"><label for="chaiFullPrice">Full chai (₹)</label><input id="chaiFullPrice" type="number" min="0" step="0.01"></div></div>
         <button class="primary" type="button" id="chaiSaveTea">Save tea prices</button>
       </div>
@@ -62,6 +62,7 @@
     section.querySelectorAll('button[data-owner]').forEach(b=>b.addEventListener('click',()=>addEntry(b.dataset.owner,b.dataset.kind)));
     document.getElementById('chaiBrandSelect').addEventListener('change',selectBrand);
     document.getElementById('chaiSaveBrand').addEventListener('click',saveBrand);
+    document.getElementById('chaiDeleteBrand').addEventListener('click',deleteBrand);
     document.getElementById('chaiSaveTea').addEventListener('click',saveTea);
     document.getElementById('chaiUndoMy').addEventListener('click',()=>undoLast('my'));
     document.getElementById('chaiUndoGroup').addEventListener('click',()=>undoLast('group'));
@@ -73,6 +74,18 @@
   function fillSettings(){const sel=document.getElementById('chaiBrandSelect');sel.innerHTML=settings.brands.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');sel.value=settings.activeBrandId;const b=activeBrand()||{name:'',price:0};document.getElementById('chaiBrandName').value=b.name;document.getElementById('chaiCigPrice').value=b.price||'';document.getElementById('chaiHalfPrice').value=settings.halfTea||'';document.getElementById('chaiFullPrice').value=settings.fullTea||'';document.getElementById('chaiBaseline').value=settings.baseline||'';document.getElementById('chaiTarget').value=settings.target||'';document.getElementById('chaiTargetDate').value=settings.targetDate||'';}
   function selectBrand(){settings.activeBrandId=document.getElementById('chaiBrandSelect').value;persistSettings();fillSettings();}
   function saveBrand(){const name=document.getElementById('chaiBrandName').value.trim(),price=Number(document.getElementById('chaiCigPrice').value||0);if(!name)return showToast('Enter a cigarette brand name.');if(price<=0)return showToast('Enter the price of one cigarette.');let b=settings.brands.find(x=>x.id===settings.activeBrandId&&x.name.toLowerCase()===name.toLowerCase())||settings.brands.find(x=>x.name.toLowerCase()===name.toLowerCase());if(b){b.price=price;settings.activeBrandId=b.id;}else{b={id:'brand-'+Date.now(),name,price};settings.brands.push(b);settings.activeBrandId=b.id;}persistSettings();fillSettings();showToast('Brand and individual cigarette price saved.');}
+  function deleteBrand(){
+    const brand=activeBrand();
+    if(!brand)return showToast('No cigarette brand selected.');
+    if(settings.brands.length<=1)return showToast('Add another brand before deleting the last one.');
+    if(!confirm(`Delete ${brand.name} from your brand list? Previous entries and their spending will be kept.`))return;
+    settings.brands=settings.brands.filter(b=>b.id!==brand.id);
+    settings.activeBrandId=settings.brands[0].id;
+    persistSettings();
+    fillSettings();
+    renderModule();
+    showToast(`${brand.name} deleted. Previous entries were kept.`);
+  }
   function saveTea(){settings.halfTea=Number(document.getElementById('chaiHalfPrice').value||0);settings.fullTea=Number(document.getElementById('chaiFullPrice').value||0);persistSettings();showToast('Tea prices saved.');}
   function saveGoal(){settings.baseline=Math.max(0,Number(document.getElementById('chaiBaseline').value||0));settings.target=Math.max(0,Number(document.getElementById('chaiTarget').value||0));settings.targetDate=document.getElementById('chaiTargetDate').value;persistSettings();renderModule();showToast('Reduction goal saved.');}
 function addEntry(owner,kind){
