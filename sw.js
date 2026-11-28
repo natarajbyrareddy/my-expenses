@@ -1,5 +1,5 @@
 /* My Expenses service worker: network-first for app code, cache fallback offline. */
-const CACHE = 'my-expenses-v25';
+const CACHE = 'my-expenses-v26';
 const SHELL = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
