@@ -61,6 +61,7 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
 .dhead{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 4px;border-top:1px solid var(--line)}
 .rtx{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);font-size:14px}
 .rtx>span{min-width:0}.rtx .rt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rtx small{display:block;color:var(--muted);font-size:12px}.rtx b{white-space:nowrap}
+#appToast.has-undo{display:flex;align-items:center;width:max-content}.toast-undo{all:unset;box-sizing:border-box;margin-left:16px;padding:4px 2px;color:var(--theme-mid);font-weight:700;cursor:pointer;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -148,7 +149,7 @@ input,select{width:100%;border:1px solid var(--line);background:white;border-rad
  <div class="formcard">
   <button class="primary cat-add-trigger" type="button" id="showCategoryInput" onclick="revealCategoryInput()">＋ Add category</button><div class="category-add" id="categoryAddForm" hidden><div class="field" style="flex:1"><label for="newCategory">Category name</label><input id="newCategory" maxlength="30" placeholder="Enter category name"></div><button class="primary" type="button" style="align-self:end" onclick="addCategory()">Save</button><button class="secondary" type="button" style="align-self:end" onclick="hideCategoryInput()">Cancel</button></div>
   <div id="categoryList"></div>
-  <div class="note">Create and manage your expense categories. Deleting a category won't delete old transactions recorded under it.</div>
+  <div class="note">Create and manage your expense categories. Renaming a category updates all its past transactions, and renaming it to an existing name merges them. Deleting a category keeps old transactions under its name.</div>
  </div>
 
 </section>
@@ -165,7 +166,19 @@ try{const parsed=JSON.parse(localStorage.getItem(CATKEY)||'null');if(parsed&&Arr
 let expCats=savedCats.expense.slice().sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})), incCats=savedCats.income;
 let transactions=load(), currentType='expense', editingId=null;
 let calendarMonth='', selectedCalendarDate='', toastTimer=null;
-function showToast(message){const el=document.getElementById('appToast');if(!el)return;el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600)}
+function showToast(message){const el=document.getElementById('appToast');if(!el)return;el.textContent=message;el.classList.remove('has-undo');el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600)}
+function showUndoToast(message,undo){
+ const el=document.getElementById('appToast');if(!el)return;
+ el.textContent='';const s=document.createElement('span');s.textContent=message;
+ const b=document.createElement('button');b.type='button';b.className='toast-undo';b.textContent='Undo';
+ b.onclick=()=>{clearTimeout(toastTimer);el.classList.remove('show');undo()};
+ el.append(s,b);el.classList.add('has-undo','show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),7000);
+}
+function refreshActiveView(){
+ const v=document.querySelector('.view.active')?.id;
+ if(v==='history')renderHistory();else if(v==='reports')renderReports();
+ else if(v==='categoryDetail')renderCategoryDetail(document.getElementById('detailCategoryTitle').textContent);
+}
 const fmt=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(n||0);
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 const monthNow=()=>today().slice(0,7);
@@ -297,7 +310,31 @@ function setTheme(name){const legacy={'#315fc1':'terracotta','#e05a47':'terracot
 function handleThemeSelect(value){setTheme(value)}
 function persistCats(){localStorage.setItem(CATKEY,JSON.stringify({expense:expCats,income:incCats}))}
 function setType(){currentType='expense';document.getElementById('formTitle').textContent='Add expense';document.getElementById('category').innerHTML=expCats.map(x=>`<option value="${escapeHTML(x)}">${escapeHTML(x)}</option>`).join('')}
-function renderCategoryManager(){expCats.sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));document.getElementById('categoryList').innerHTML=expCats.map((c,i)=>`<div class="transaction"><div class="txinfo"><div class="txname">${escapeHTML(c)}</div></div><button type="button" class="danger" onclick="removeCategory(${i})" aria-label="Delete ${escapeHTML(c)} category">Delete</button></div>`).join('')||'<div class="empty">No categories. Add one above.</div>'}
+let editingCatName=null;
+function renderCategoryManager(){
+ expCats.sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
+ document.getElementById('categoryList').innerHTML=expCats.map((c,i)=>{
+  if(c===editingCatName)return `<div class="transaction"><input id="catEditInput" maxlength="30" value="${escapeHTML(c)}" aria-label="Category name" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')saveCatEdit();if(event.key==='Escape')cancelCatEdit()"><div class="txactions"><button type="button" class="primary" onclick="saveCatEdit()">Save</button><button type="button" class="secondary" onclick="cancelCatEdit()">Cancel</button></div></div>`;
+  const n=transactions.filter(t=>t.type==='expense'&&t.category===c).length;
+  return `<div class="transaction"><div class="txinfo"><div class="txname">${escapeHTML(c)}</div><div class="txmeta">${n} transaction${n===1?'':'s'}</div></div><div class="txactions"><button type="button" class="editbtn" onclick="startCatEdit(${i})" aria-label="Edit ${escapeHTML(c)} category">Edit</button><button type="button" class="danger" onclick="removeCategory(${i})" aria-label="Delete ${escapeHTML(c)} category">Delete</button></div></div>`}).join('')||'<div class="empty">No categories. Add one above.</div>'}
+function startCatEdit(i){editingCatName=expCats[i]??null;renderCategoryManager();const el=document.getElementById('catEditInput');if(el){el.focus();el.select()}}
+function cancelCatEdit(){editingCatName=null;renderCategoryManager()}
+function saveCatEdit(){
+ const old=editingCatName;if(old===null||!expCats.includes(old))return cancelCatEdit();
+ const name=document.getElementById('catEditInput').value.trim();
+ if(!name)return showToast('Enter a category name.');
+ if(name===old)return cancelCatEdit();
+ if(name.toLowerCase()==='tea & cigarettes')return showToast('That name is reserved for the Chai tab.');
+ const target=expCats.find(c=>c!==old&&c.toLowerCase()===name.toLowerCase()),count=transactions.filter(t=>t.type==='expense'&&t.category===old).length;
+ let msg;
+ if(target){
+  if(!confirm('"'+target+'" already exists. Merge "'+old+'" into it? '+count+' transaction'+(count===1?'':'s')+' will move to "'+target+'".'))return;
+  expCats=expCats.filter(c=>c!==old);transactions.forEach(t=>{if(t.type==='expense'&&t.category===old)t.category=target});msg='Merged into '+target+'.';
+ }else{
+  expCats=expCats.map(c=>c===old?name:c);transactions.forEach(t=>{if(t.type==='expense'&&t.category===old)t.category=name});msg='Category renamed'+(count?' · '+count+' transaction'+(count===1?'':'s')+' updated':'')+'.';
+ }
+ editingCatName=null;persistCats();save();renderCategoryManager();setType();showToast(msg);
+}
 function addCategory(){const input=document.getElementById('newCategory'),name=input.value.trim();if(!name)return alert('Enter a category name.');if(expCats.some(c=>c.toLowerCase()===name.toLowerCase()))return alert('That category already exists.');expCats.push(name);expCats.sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));persistCats();hideCategoryInput();renderCategoryManager();setType();showToast('Category added successfully.')}
 function removeCategory(index){if(!Number.isInteger(index)||index<0||index>=expCats.length)return;const name=expCats[index];if(!window.confirm('Delete the category "'+name+'"? Existing transactions will be kept under this category in history.'))return;expCats.splice(index,1);persistCats();renderCategoryManager();setType();showToast('Category deleted. Existing transactions were kept.')}
 function openAdd(){editingId=null;window._editFrom=null;document.getElementById('txForm').reset();document.getElementById('formTitle').textContent='Add expense';document.querySelector('#txForm button[type=submit]').textContent='Save expense';document.querySelector('#add .sectionhead .subtle').textContent='New expense';document.getElementById('date').value=today();setType();showView('add');document.getElementById('amount').focus()}
@@ -313,7 +350,16 @@ function calculateExpression(expression){
 function calcKey(key){const field=document.getElementById('amount');if(key==='C'){field.value='';return}if(key==='back'){field.value=field.value.slice(0,-1);return}if(key==='= '||key==='='){try{field.value=String(calculateExpression(field.value));showToast('Calculation complete.')}catch(e){showToast('Enter a valid calculation.')}return}field.value+=key;}
 document.querySelectorAll('.calc-grid button').forEach(button=>button.addEventListener('click',()=>calcKey(button.dataset.key)));
 document.getElementById('txForm').addEventListener('submit',e=>{e.preventDefault();let amount;try{amount=calculateExpression(document.getElementById('amount').value)}catch(err){showToast('Enter a valid amount or calculation.');return}if(!(amount>0)){showToast('Enter an amount greater than zero.');return}const values={type:'expense',amount,category:document.getElementById('category').value,description:document.getElementById('description').value.trim(),date:document.getElementById('date').value};if(!values.date){showToast('Please select a transaction date.');return}let message;if(editingId!==null){const index=transactions.findIndex(t=>String(t.id)===String(editingId));if(index<0){showToast('Could not find this transaction.');return}transactions[index]={...transactions[index],...values};editingId=null;message='Transaction updated successfully.'}else{transactions.push({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2)),...values,created:Date.now()});message='Expense added successfully.'}save();selectedCalendarDate=values.date;calendarMonth=values.date.slice(0,7);document.querySelector('#txForm button[type=submit]').textContent='Save expense';document.querySelector('#add .sectionhead .subtle').textContent='New transaction';showView(window._editFrom&&window._editFrom!=='add'?window._editFrom:'dashboard');window._editFrom=null;showToast(message)});
-function deleteTx(id){const tx=transactions.find(t=>String(t.id)===String(id));if(!tx){showToast('Transaction not found.');return}if(!window.confirm('Delete this transaction? This cannot be undone.'))return;const before=transactions.length;transactions=transactions.filter(t=>String(t.id)!==String(id));if(transactions.length===before){showToast('Transaction was not deleted.');return}save();render();showToast('Transaction deleted successfully.')}
+function deleteTx(id){
+ const tx=transactions.find(t=>String(t.id)===String(id));
+ if(!tx){showToast('Transaction not found.');return}
+ transactions=transactions.filter(t=>String(t.id)!==String(id));
+ save();render();refreshActiveView();
+ showUndoToast('Transaction deleted.',()=>{
+  if(transactions.some(t=>String(t.id)===String(tx.id)))return;
+  transactions.push(tx);save();render();refreshActiveView();showToast('Transaction restored.');
+ });
+}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
 function updateBackupReminder(){
  const last=Number(localStorage.getItem('myExpenses.lastBackup.v1')||0),days=last?Math.floor((Date.now()-last)/86400000):null,prot=localStorage.getItem('myExpenses.persisted')==='1'?' Browser storage is protected from automatic clearing.':'';
@@ -351,5 +397,5 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 }
 setTheme(localStorage.getItem(THEMEKEY)||'terracotta');setType('expense');render();
 </script>
-<script src="./chai-module.js?v=10"></script>
+<script src="./chai-module.js?v=11"></script>
 </body></html>

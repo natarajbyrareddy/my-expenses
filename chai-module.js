@@ -159,14 +159,24 @@ function addEntry(owner,kind){
     return showToast(`No ${owner==='my'?'personal':'group'} entry to undo.`);
 
   const label=meta(last).label||'Entry';
+  const canRestore=typeof showUndoToast==='function';
 
-  if(!confirm(`Undo last ${owner==='my'?'personal':'group'} entry?\n${label} · ${money(last.amount)}\n\nCancel / OK`))
+  if(!canRestore&&!confirm(`Undo last ${owner==='my'?'personal':'group'} entry?\n${label} · ${money(last.amount)}\n\nCancel / OK`))
     return;
 
   transactions=transactions.filter(t=>String(t.id)!==String(last.id));
   save();
   renderModule();
-  showToast('Entry undone.');
+
+  if(canRestore)
+    showUndoToast(`${label} removed.`,()=>{
+      if(transactions.some(t=>String(t.id)===String(last.id)))return;
+      transactions.push(last);
+      save();
+      renderModule();
+    });
+  else
+    showToast('Entry undone.');
 }
   function renderModule(){if(!document.getElementById('chaiModule'))return;const all=entries(),month=dateToday().slice(0,7),thisMonth=all.filter(t=>(t.date||'').slice(0,7)===month),my=thisMonth.filter(t=>meta(t).owner==='my'),group=thisMonth.filter(t=>meta(t).owner==='group'),todayRows=all.filter(t=>t.date===dateToday());document.getElementById('chaiMonth').textContent=monthTitle(month);document.getElementById('chaiSpendMonth').textContent=monthTitle(month);document.getElementById('chaiTotalSpend').textContent=money(sum(thisMonth));document.getElementById('chaiMySpend').textContent=money(sum(my));document.getElementById('chaiGroupSpend').textContent=money(sum(group));const cigS=a=>money(sum(a.filter(t=>meta(t).kind==='cigarette'))),teaS=a=>money(sum(a.filter(t=>meta(t).kind!=='cigarette')));document.getElementById('chaiMyCigSpend').textContent=cigS(my);document.getElementById('chaiMyTeaSpend').textContent=teaS(my);document.getElementById('chaiGroupCigSpend').textContent=cigS(group);document.getElementById('chaiGroupTeaSpend').textContent=teaS(group);document.getElementById('chaiMyToday').textContent=`${todayRows.filter(t=>meta(t).owner==='my').length} today`;document.getElementById('myCigCount').textContent=count(todayRows,'cigarette','my');document.getElementById('myTeaCount').textContent=count(todayRows,'half','my')+count(todayRows,'full','my');document.getElementById('groupCigCount').textContent=count(todayRows,'cigarette','group');document.getElementById('groupTeaCount').textContent=count(todayRows,'half','group')+count(todayRows,'full','group');renderReduction(all);renderProgress(all);}
   function renderProgress(all){
